@@ -1,0 +1,11 @@
+      @@@@  @@@
+@@@@  @@B@  @^@
+@@A@  @@@@  @@@
+@@@@  @@@@  @@@
+@$@@aa@@@@bb@@@
+@@@@  @@@@
+
+A: SOFT, TOGGLE a
+B: HARD, TOGGLE b
+a: OFF
+b: OFF
