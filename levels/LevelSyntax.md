@@ -3,9 +3,10 @@ Levels are created using characters, with each newline creating a new row on the
 There are only a few characters:
 - Orange (fragile) tiles: `!`
 - White tiles: `@`
-- Player position: `$` (up to 2)
-- Destination: `^` (up to 2)
+- Player position: `$` (max 1)
+- Destination: `^` (max 1)
 - Void padding: '` `' (a space)
+- `[A-Za-z]`: Switches and bridge tiles.
 
 Example map:
 ```
@@ -29,11 +30,11 @@ You will use the cased characters in the level map to place them.
 
 Example syntax, after or before the level map:
 ```
-A: SOFT, TOGGLE a
-B: HARD, OFF b, TELEPORT c d
-C: SOFT
-a: OFF
-b: OFF
+A: soft, on B, toggle a
+B: hard, off b, teleport c d
+C: soft
+a: off
+b: off
 ```
 Here, the attribute names and arguments are case-insensitive. If you have `ON A`, it will turn
 any bridge tiles `a` on.

@@ -5,7 +5,7 @@
 @$@@aa@@@@bb@@@
 @@@@  @@@@
 
-A: SOFT, TOGGLE a
-B: HARD, TOGGLE b
-a: OFF
-b: OFF
+A: soft, toggle a
+B: hard, toggle b
+a: off
+b: off

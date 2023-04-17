@@ -26,6 +26,9 @@ until you reach the goal. The glaring problem with this is that you:
 - Create a lot of invalid moves that fall off the platform
 - Create cycles that revisit states you've already been to
 - Take the same path more than once since you can't be sure what's the best.
+- Have no idea how many patterns to make 
+
+Also, the asymptotic complexity of this is abysmal: O(4^m) where m is the minimal number of moves.
 
 ## Breadth-first search
 Since breadth means width, we prioritize nodes that are closest to us before we explore other ones.
