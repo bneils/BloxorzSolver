@@ -38,8 +38,6 @@ b: off
 ```
 Here, the attribute names and arguments are case-insensitive. If you have `ON A`, it will turn
 any bridge tiles `a` on.
-The switches require a softness attribute, but don't need to have an action.
-The bridges can also be given OFF/ON where OFF is no bridge.
-If unspecified it's assumed to be ON, but you should be explicit in the level design.
+Switches default to being 'soft' and bridges default to being 'on'.
 Bridges are on by default since teleportation switches use the same scheme
 and rely on the bridges being treated as regular tiles.

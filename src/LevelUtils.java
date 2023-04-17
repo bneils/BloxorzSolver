@@ -9,13 +9,12 @@ public class LevelUtils {
     }
 
     public static Level loadFromFile(String filename) throws FileNotFoundException, LevelParserException {
-        Level map = new Level();
+        Level level = new Level();
         File file = new File(filename);
         Scanner reader = new Scanner(file);
-        ArrayList<ArrayList<Tile>> level = new ArrayList<>();
 
-        Optional<Pair<Integer, Integer>> playerPos, goalPos;
-        playerPos = goalPos = Optional.empty();
+        boolean hasPlayerPos, hasGoalPos;
+        hasPlayerPos = hasGoalPos = false;
 
         // A tree map is used since the keys are alphanumeric characters.
         // Each key's value contains a list of locations on the level where that element is.
@@ -52,8 +51,8 @@ public class LevelUtils {
                     switch (attrs[0].strip().toLowerCase()) {
                         case "on" -> bridgeInitialStatuses.put(letterId, true);
                         case "off" -> bridgeInitialStatuses.put(letterId, false);
-                        default -> throw new LevelParserException("Invalid bridge attribute for '%c' '%s' on line %d"
-                                .formatted(letterId, attrs[0], lineno));
+                        default -> throw new LevelParserException("Invalid bridge attribute for '%c' ('%s') on line %d"
+                                .formatted(letterId, attrs[0].strip(), lineno));
                     }
                     continue;
                 }
@@ -101,26 +100,28 @@ public class LevelUtils {
                 for (char c : line.toCharArray()) {
                     Tile tile;
                     int x = levelRow.size();
-                    int y = level.size();
+                    int y = level.cells.size();
                     switch (c) {
                         case ' ' -> tile = Tile.VOID;
                         case '!' -> tile = Tile.WEAK_FLOOR;
                         case '@' -> tile = Tile.STRONG_FLOOR;
                         case '$' -> {
                             tile = Tile.STRONG_FLOOR;
-                            if (playerPos.isPresent()) {
+                            if (hasPlayerPos) {
                                 throw new LevelParserException("Can only have one initial player position on line %d column %d"
                                         .formatted(lineno, x + 1));
                             }
-                            playerPos = Optional.of(new Pair<>(x, y));
+                            hasPlayerPos = true;
+                            level.playerPos = new Pair<>(x, y);
                         }
                         case '^' -> {
                             tile = Tile.STRONG_FLOOR;
-                            if (goalPos.isPresent()) {
+                            if (hasGoalPos) {
                                 throw new LevelParserException("Can only have one goal position on line %d column %d"
                                         .formatted(lineno, x + 1));
                             }
-                            goalPos = Optional.of(new Pair<>(x, y));
+                            hasGoalPos = true;
+                            level.goalPos = new Pair<>(x, y);
                         }
                         default -> {
                             tile = Tile.STRONG_FLOOR;
@@ -143,19 +144,19 @@ public class LevelUtils {
                     }
                     levelRow.add(tile);
                 }
-                level.add(levelRow);
+                level.cells.add(levelRow);
             }
         }
 
-        if (playerPos.isEmpty())
+        if (!hasPlayerPos)
             throw new LevelParserException("There is no initial player position");
-        if (goalPos.isEmpty())
+        if (!hasGoalPos)
             throw new LevelParserException("There is no goal position");
         for (char c : elementPositions.keySet()) {
             if (Character.isUpperCase(c) && !switchAttributes.containsKey(c))
                 throw new LevelParserException("Switch %c does not have any attributes".formatted(c));
         }
 
-        return map;
+        return level;
     }
 }
