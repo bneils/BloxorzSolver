@@ -1,11 +1,11 @@
       @@@@  @@@
 @@@@  @@B@  @^@
-@@A@  @@@@  @@@
-@@@@  @@@@  @@@
+@@A@  @@@@  @c@
+@@@@  @@@@  @@d
 @$@@aa@@@@bb@@@
 @@@@  @@@@
 
 A: toggle a
-B: hard, toggle b
+B: hard, toggle b, teleport c d
 a: off
 b: off

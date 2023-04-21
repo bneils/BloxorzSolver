@@ -1,4 +1,4 @@
-public enum SwitchAction {
+public enum BridgeEffect {
     ON,
     OFF,
     TOGGLE,
