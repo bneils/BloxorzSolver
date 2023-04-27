@@ -1,6 +1,7 @@
-import org.javatuples.Pair;
+package com.superhelix;
 
 import java.util.*;
+import org.javatuples.Pair;
 
 public class StateGraph {
     Level level;
