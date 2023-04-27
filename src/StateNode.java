@@ -8,8 +8,6 @@ public class StateNode implements Cloneable {
     private final int distance;   // The number of moves traveled from start to be here
     private final int x1, y1, x2, y2;     // The player's position
     private final Map<Character, Boolean> bridgeStates;
-    private final StateNode previous;
-    private ArrayList<StateNode> next;
     private final String identifier;
     private final boolean isSplit;
 
@@ -20,8 +18,6 @@ public class StateNode implements Cloneable {
         this.x2 = x2;
         this.y2 = y2;
         this.bridgeStates = bridgeStates;
-        previous = prev;
-        next = new ArrayList<>();
 
         String loc = "%d,%d,%d,%d".formatted(x1, y1, x2, y2);
         StringBuilder states = new StringBuilder();
@@ -29,7 +25,7 @@ public class StateNode implements Cloneable {
             String bit = bridgeStates.get((Character) k) ? "1" : "0";
             states.append(bit);
         }
-        identifier = loc + states;
+        identifier = loc + "|" + states;
         isSplit = coordsAreSplit(x1, y1, x2, y2);
     }
 
@@ -202,6 +198,7 @@ public class StateNode implements Cloneable {
         return super.clone();
     }
 
-    /// Returns whether the two player blocks are connected
-    public boolean isSplit() { return isSplit; }
+    public int getDistance() { return distance; }
+
+    public int[] getPlayerPosition() { return new int[] { x1, y1, x2, y2 }; }
 }
