@@ -3,7 +3,6 @@ package com.superhelix;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
-import org.javatuples.Pair;
 
 public class LevelUtils {
     private static char toLetter(String s) throws LevelParserException {
@@ -89,45 +88,53 @@ public class LevelUtils {
     }
 
     public static Level loadFromFile(String filename) throws FileNotFoundException, LevelParserException {
-        Level level = new Level();
         File file = new File(filename);
         Scanner reader = new Scanner(file);
+
+        Map<Character, TileMetadata> tilesMetadata = new TreeMap<>();
+        List<List<Tile>> tiles = new ArrayList<>();
+        Position playerPos = null, goalPos = null;
 
         for (int lineno = 1; reader.hasNextLine(); ++lineno) {
             String line = reader.nextLine();
             if (line.contains(":")) {
                 String[] tokens = getTokens(line, lineno);
                 char letterId = toLetter(tokens[0]);
+
+                if (!tilesMetadata.containsKey(letterId))
+                    tilesMetadata.put(letterId, new TileMetadata());
+                TileMetadata meta = tilesMetadata.get(letterId);
+
                 if (Character.isLowerCase(letterId)) // Bridge
-                    level.bridgeInitialStatuses.put(letterId, getInitialBridgeState(tokens, lineno));
+                    meta.setStartingBridgeState(getInitialBridgeState(tokens, lineno));
                 else // Switch
-                    level.switchAttributes.put(letterId, getSwitchAttribute(tokens, lineno));
+                    meta.setSwitchAttribute(getSwitchAttribute(tokens, lineno));
             } else {
                 // build next row of level
                 List<Tile> levelRow = new ArrayList<>();
                 for (char c : line.toCharArray()) {
                     Tile tile;
                     int x = levelRow.size();
-                    int y = level.cells.size();
+                    int y = tiles.size();
                     switch (c) {
                         case ' ' -> tile = Tile.VOID;
                         case '!' -> tile = Tile.WEAK_FLOOR;
                         case '@' -> tile = Tile.STRONG_FLOOR;
                         case '$' -> {
                             tile = Tile.STRONG_FLOOR;
-                            if (level.playerPos != null) {
+                            if (playerPos != null) {
                                 throw new LevelParserException("Can only have one initial player position on line %d column %d"
                                         .formatted(lineno, x + 1));
                             }
-                            level.playerPos = new Position(x, y);
+                            playerPos = new Position(x, y);
                         }
                         case '^' -> {
                             tile = Tile.STRONG_FLOOR;
-                            if (level.goalPos != null) {
+                            if (goalPos != null) {
                                 throw new LevelParserException("Can only have one goal position on line %d column %d"
                                         .formatted(lineno, x + 1));
                             }
-                            level.goalPos = new Position(x, y);
+                            goalPos = new Position(x, y);
                         }
                         default -> {
                             tile = Tile.STRONG_FLOOR;
@@ -137,42 +144,44 @@ public class LevelUtils {
                             }
 
                             // Ensure c is in the map then add next coordinate
-                            List<Position> positions = level.elementPositions
-                                    .computeIfAbsent(c, k -> new ArrayList<>());
+                            if (!tilesMetadata.containsKey(c))
+                                tilesMetadata.put(c, new TileMetadata());
+                            TileMetadata meta = tilesMetadata.get(c);
+                            if (meta.getPositions() == null)
+                                meta.setPositions(new ArrayList<>());
 
-                            level.elementPositions.get(c).add(new Position(x, y));
-
-                            // Default bridge condition is ON
-                            if (Character.isLowerCase(c)) {
-                                level.bridgeInitialStatuses.computeIfAbsent(c, k -> true);
-                            }
+                            meta.getPositions().add(new Position(x, y));
                         }
                     }
                     levelRow.add(tile);
                 }
-                level.cells.add(levelRow);
+                tiles.add(levelRow);
             }
         }
 
-        if (level.playerPos == null)
+        if (playerPos == null)
             throw new LevelParserException("There is no initial player position");
-        if (level.goalPos == null)
+        if (goalPos == null)
             throw new LevelParserException("There is no goal position");
-        for (char c : level.elementPositions.keySet()) {
-            if (Character.isUpperCase(c) && !level.switchAttributes.containsKey(c))
-                throw new LevelParserException("Switch '%c' does not have any attributes".formatted(c));
-        }
+        for (Map.Entry<Character, TileMetadata> entry : tilesMetadata.entrySet())
+            if (Character.isUpperCase(entry.getKey()) && entry.getValue().getSwitchAttribute() == null)
+                throw new LevelParserException("Switch '%c' does not have any attributes".formatted(entry.getKey()));
 
         // Verify that teleport locations are unambiguous
-        for (Map.Entry<Character, SwitchAttribute> entry : level.switchAttributes.entrySet()) {
-            char[] teleportLocations = entry.getValue().getTeleportLocations();
+        for (Map.Entry<Character, TileMetadata> entry : tilesMetadata.entrySet()) {
+            SwitchAttribute attr = entry.getValue().getSwitchAttribute();
+            // We don't know for sure that this metadata is for a switch
+            // We could check the case for the character, but this is clearer
+            if (attr == null)
+                break;
+            char[] teleportLocations = attr.teleportLocations();
             if (teleportLocations != null) {
                 for (char ch : teleportLocations) {
-                    if (!level.elementPositions.containsKey(ch)) {
+                    if (!tilesMetadata.containsKey(ch)) {
                         throw new LevelParserException("Switch '%c' has unknown teleport location '%c'"
                                 .formatted(entry.getKey(), ch));
                     }
-                    if (level.elementPositions.get(ch).size() != 1) {
+                    if (tilesMetadata.get(ch).getPositions().size() != 1) {
                         throw new LevelParserException("Switch '%c' has ambiguous teleport to tile '%c'"
                                 .formatted(entry.getKey(), ch));
                     }
@@ -180,6 +189,8 @@ public class LevelUtils {
             }
         }
 
-        return level;
+        return new Level(
+                tiles, playerPos, goalPos, tilesMetadata
+        );
     }
 }

@@ -1,7 +1,5 @@
 package com.superhelix;
 
-import org.javatuples.Pair;
-
 import java.util.*;
 
 public class StateNode implements Cloneable {
@@ -9,142 +7,160 @@ public class StateNode implements Cloneable {
     private final Player player;
     private final Map<Character, Boolean> bridgeStates;
     private final String identifier;
-    private final boolean isSplit;
+    private final StateNode parent;
+    private final String moveDescription;
 
-    public StateNode(int distance, int x1, int y1, int x2, int y2, LinkedHashMap<Character, Boolean> bridgeStates, StateNode prev) {
-        this.distance = distance;
-        player = new Player(new Position(x1, y1), new Position(x2, y2));
+    public StateNode(int dist, Position a, Position b, StateNode parentNode, String moveDesc,
+                     Map<Character, Boolean> bridgeStates) {
+        distance = dist;
+        player = new Player(a, b);
         this.bridgeStates = bridgeStates;
+        parent = parentNode;
+        moveDescription = moveDesc;
 
         StringBuilder states = new StringBuilder();
-        // bridgeStates must be a LinkedHashMap
-        for (boolean state : bridgeStates.values()) {
-            states.append(state ? "1" : "0");
+        // Iterate through the bridges alphabetically and add them to the string
+        for (Iterator<Character> it = bridgeStates.keySet().stream().sorted().iterator(); it.hasNext(); ) {
+            char key = it.next();
+            boolean value = bridgeStates.get(key);
+            states.append(value ? '1' : '0');
         }
         identifier = player.formatIdentifier() + "," + states;
-        isSplit = coordsAreSplit(x1, y1, x2, y2);
     }
 
-    private boolean coordsAreSplit(int x1, int y1, int x2, int y2) {
-        int dx = Math.abs(x2 - x1);
-        int dy = Math.abs(y2 - y1);
-        return !(dx == 0 && dy <= 1 || dx <= 1 && dy == 0);
-    }
-
-    public String getIdentifier() { return identifier; }
-
+    /**
+     * Generates every PlayerChange that is possible from the current position, orientation, and level state.
+     * @return A list of PlayerChanges
+     */
     private List<PlayerChange> generateNextPositions() {
-        List<PlayerChange> possibleNext = new ArrayList<>();
+        List<PlayerChange> changes = new ArrayList<>();
         Direction[] directions = new Direction[]{Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT};
 
         for (Direction direction : directions) {
-            possibleNext.add(new PlayerChange(player.movedPlayer(direction, false), direction.toString()));
+            changes.add(new PlayerChange(player.newMovedPlayer(direction, false), direction.toString()));
             if (player.isSplit()) {
-                possibleNext.add(new PlayerChange(
-                        player.movedPlayer(direction, true),
+                changes.add(new PlayerChange(
+                        player.newMovedPlayer(direction, true),
                         "SPACE " + direction));
             }
         }
 
-        return possibleNext;
+        return changes;
     }
 
-    private Tile getCellOrVoid(ArrayList<ArrayList<Tile>> cells, int x, int y) {
+    /**
+     * Gets a tile in the grid without worrying about bounds
+     * @param tiles The grid of tiles
+     * @param x The x coord
+     * @param y The y coord
+     * @return The tile at that coordinate, or void if it's out-of-bounds.
+     */
+    private Tile getTileOrVoid(List<List<Tile>> tiles, int x, int y) {
         try {
-            return cells.get(y).get(x);
+            return tiles.get(y).get(x);
         } catch (IndexOutOfBoundsException e) {
             return Tile.VOID;
         }
     }
 
-    public ArrayList<Pair<StateNode, String>> generateChildren(Level level) {
-        List<Pair<StateNode, String>> children = new ArrayList<>();
-        List<List<Tile>> cells = level.applyState(bridgeStates);
+    public List<StateNode> generateChildren(Level level) {
+        List<StateNode> children = new ArrayList<>();
+        List<List<Tile>> tiles = level.applyState(bridgeStates);
 
-        for (Pair<int[], String> posMove : generateNextPositions()) {
-            int[] pos = posMove.getValue0();
-            String move = posMove.getValue1();
-            int x1 = pos[0], y1 = pos[1], x2 = pos[2], y2 = pos[3];
+        for (PlayerChange change : generateNextPositions()) {
+            // The PlayerChanges alone are not guaranteed to be valid, as some may fall off an edge or break a weak tile
+            int x1 = change.player().getFirst().x();
+            int y1 = change.player().getFirst().y();
+            int x2 = change.player().getSecond().x();
+            int y2 = change.player().getSecond().y();
 
             Tile tileA, tileB, tileC, tileD;
-            tileB = getCellOrVoid(cells, x1, y1);
-            tileC = getCellOrVoid(cells, x2, y2);
+            tileB = getTileOrVoid(tiles, x1, y1);
+            tileC = getTileOrVoid(tiles, x2, y2);
 
-            // filter this out if it's vertical and on a weak or void tile
-            if (x1 == x2 && y1 == y2 && (tileB == Tile.VOID || tileB == Tile.WEAK_FLOOR))
+            // One fell off the platform
+            if (player.isSplit() && (tileB == Tile.VOID || tileC == Tile.VOID))
                 continue;
 
-            // bad if one fell off the platform
-            if (coordsAreSplit(x1, y1, x2, y2) && (tileB == Tile.VOID || tileC == Tile.VOID))
-                continue;
-
-            // i.e. ABCD where BC is the tile (horizontal)
-            if (x1 != x2) {
-                tileA = getCellOrVoid(cells, x1 - 1, y1);
-                tileD = getCellOrVoid(cells, x2 + 1, y1);
+            if (player.isVertical()) {
+                // Would break a weak tile or fell off
+                if (tileB == Tile.VOID || tileB == Tile.WEAK_FLOOR)
+                    continue;
             } else {
-                tileA = getCellOrVoid(cells, x1, y1 - 1);
-                tileD = getCellOrVoid(cells, x1, y2 + 1);
-            }
+                // i.e. ABCD where BC is the tile (horizontal)
+                if (x1 != x2) {
+                    tileA = getTileOrVoid(tiles, x1 - 1, y1);
+                    tileD = getTileOrVoid(tiles, x2 + 1, y1);
+                } else {
+                    tileA = getTileOrVoid(tiles, x1, y1 - 1);
+                    tileD = getTileOrVoid(tiles, x1, y2 + 1);
+                }
 
-            // discard if we've fallen off
-            // this works since the block considers adjacent tiles in the long direction
-            if (tileA == Tile.VOID && tileB == Tile.VOID
-                    || tileC == Tile.VOID && tileD == Tile.VOID
-                    || tileB == Tile.VOID && tileC == Tile.VOID)
-                continue;
+                // discard if we've fallen off
+                // this works since the block considers adjacent tiles in the long direction
+                if (tileA == Tile.VOID && tileB == Tile.VOID
+                        || tileB == Tile.VOID && tileC == Tile.VOID
+                        || tileC == Tile.VOID && tileD == Tile.VOID)
+                    continue;
+            }
 
             // (x1, y1) & (x2, y2) should be valid
             // now, we need to register any switch events and create a new set of bridge states
             Map<Character, Boolean> newBridgeStates = new TreeMap<>(bridgeStates);
-            for (Map.Entry<Character, SwitchAttribute> switchElement : level.switchAttributes.entrySet()) {
-                List<Position> positions = level.elementPositions.get(switchElement.getKey());
-                for (Position position : positions) {
-                    boolean activated;
-                    int x = position.x();
-                    int y = position.y();
-                    if (switchElement.getValue().getActivationType() == ActivationType.SOFT) {
-                        activated = (x1 == x && y1 == y) || (x2 == x && y2 == y);
-                    } else {
-                        activated = (x1 == x && y1 == y) && (x1 == x2 && y1 == y2);
-                    }
+            for (Map.Entry<Character, TileMetadata> metadata : level.tilesMetadata().entrySet()) {
+                // We know it's a switch if it has a switch attribute
+                SwitchAttribute attr = metadata.getValue().getSwitchAttribute();
+                if (attr != null) {
+                    // We'll examine all the locations it is at to determine if we've stepped on a switch
+                    List<Position> positions = level.tilesMetadata().get(metadata.getKey()).getPositions();
+                    for (Position position : positions) {
+                        boolean activated;
+                        int x = position.x();
+                        int y = position.y();
 
-                    if (!activated)
-                        continue;
+                        boolean firstOnSwitch = (x1 == x && y1 == y);
+                        boolean secondOnSwitch = (x2 == x && y2 == y);
+                        activated = (attr.activationType() == ActivationType.SOFT) ?
+                                firstOnSwitch || secondOnSwitch
+                                : firstOnSwitch && secondOnSwitch;
 
-                    // this switch is activated, state needs to change
+                        if (!activated)
+                            continue;
 
-                    char[] tpLocs = switchElement.getValue().getTeleportLocations();
-                    if (tpLocs != null) {
-                        // simply change the location if we're teleporting
-                        List<Position> ptA = level.elementPositions.get(tpLocs[0]);
-                        List<Position> ptB = level.elementPositions.get(tpLocs[1]);
+                        // We can then invoke every action that the switch attribute contains
+                        char[] tpLocs = attr.teleportLocations();
+                        if (tpLocs != null) {
+                            // simply change the position if we're teleporting
+                            List<Position> ptA = level.tilesMetadata().get(tpLocs[0]).getPositions();
+                            List<Position> ptB = level.tilesMetadata().get(tpLocs[1]).getPositions();
 
-                        if (ptA.size() == 1 && ptB.size() == 1) {
-                            x1 = ptA.get(0).x();
-                            y1 = ptA.get(0).y();
-                            x2 = ptB.get(0).x();
-                            y2 = ptB.get(0).y();
+                            if (ptA.size() == 1 && ptB.size() == 1) {
+                                x1 = ptA.get(0).x();
+                                y1 = ptA.get(0).y();
+                                x2 = ptB.get(0).x();
+                                y2 = ptB.get(0).y();
+                            }
                         }
-                    }
 
-                    List<BridgeAction> actions = switchElement.getValue().getBridgeActions();
-                    for (BridgeAction action : actions) {
-                        char bridge = action.bridgeId();
-                        BridgeEffect effect = action.effect();
-                        boolean bridgeState;
-                        switch (effect) {
-                            case ON -> bridgeState = true;
-                            case TOGGLE -> bridgeState = !newBridgeStates.get(bridge);
-                            default -> bridgeState = false;
+                        for (BridgeAction action : attr.bridgeActions()) {
+                            char bridge = action.bridgeId();
+                            BridgeEffect effect = action.effect();
+                            boolean bridgeState;
+                            switch (effect) {
+                                case ON -> bridgeState = true;
+                                case TOGGLE -> bridgeState = !newBridgeStates.get(bridge);
+                                default -> bridgeState = false;
+                            }
+                            newBridgeStates.put(bridge, bridgeState);
                         }
-                        newBridgeStates.put(bridge, bridgeState);
                     }
                 }
             }
-
-            StateNode node = new StateNode(distance + 1, x1, y1, x2, y2, newBridgeStates, this);
-            children.add(new Pair<>(node, move));
+            Position first = new Position(x1, y1);
+            Position second = new Position(x2, y2);
+            StateNode node = new StateNode(distance + 1, first, second,
+                    this, change.description(), newBridgeStates);
+            children.add(node);
         }
 
         return children;
@@ -157,5 +173,11 @@ public class StateNode implements Cloneable {
 
     public int getDistance() { return distance; }
 
-    public int[] getPlayerPosition() { return new int[] { x1, y1, x2, y2 }; }
+    public Player getPlayer() { return player; }
+
+    public StateNode getParent() { return parent; }
+
+    public String getIdentifier() { return identifier; }
+
+    public String getMoveDescription() { return moveDescription; }
 }

@@ -13,8 +13,6 @@ public class Main {
             e.printStackTrace();
             System.exit(1);
         }
-        // output of this kinda breaks
-        StateGraph graph = new StateGraph(level);
-        graph.generateMinimalMovePattern();
+        System.out.println(StateGraph.generateMinimalMovePattern(level));
     }
 }

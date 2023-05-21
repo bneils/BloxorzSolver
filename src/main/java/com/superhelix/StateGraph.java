@@ -4,62 +4,60 @@ import java.util.*;
 import org.javatuples.Pair;
 
 public class StateGraph {
-    Level level;
-    HashMap<String, StateNode> visitedBy;
+    /**
+     * Generates a minimal player move pattern from a Level.
+     * @param level The level to solve
+     * @return The keys to be pressed to complete the level.
+     */
+    public static String generateMinimalMovePattern(Level level) {
+        // visitedBy will hold a mapping from the StateNode ID to StateNode parent
+        HashMap<String, StateNode> visitedBy = new HashMap<>();
+        Queue<StateNode> workQueue = new LinkedList<>();
 
-    List<Pair<StateNode, Pair<StateNode, String>>> queue;
-
-    public StateGraph(Level level) {
-        this.level = level;
+        // Gather all the starting bridge states and use it for the first state node
+        Map<Character, Boolean> bridgeStates = new TreeMap<>();
+        for (Map.Entry<Character, TileMetadata> entry : level.tilesMetadata().entrySet())
+            bridgeStates.put(entry.getKey(), entry.getValue().getStartingBridgeState());
 
         StateNode startingNode = new StateNode(
-                0, level.playerPos().x(), level.playerPos().y(),
-                level.playerPos().x(), level.playerPos().y(), level.bridgeInitialStatuses(), null);
-        visitedBy = new HashMap<>();
-        queue = new LinkedList<>();
-        queue.addFirst(new Pair<>(null, new Pair<>(startingNode, "")));
-    }
+                0, level.playerPos(), level.playerPos(), null, "", bridgeStates);
 
-    public String generateMinimalMovePattern() {
-        Pair<StateNode, String> goalNode = null;
+        workQueue.add(startingNode);
+        StateNode backtrackingNode = null;
 
-        while (!queue.isEmpty()) {
-            Pair<StateNode, Pair<StateNode, String>> edge = queue.removeLast();
+        while (!workQueue.isEmpty()) {
+            StateNode node = workQueue.remove();
 
-            // We've already been to this node from another node
-            if (visitedBy.containsKey(edge.getValue1().getValue0().getIdentifier()))
+            // Skip if we've already visited this node (property of BFS)
+            if (visitedBy.containsKey(node.getIdentifier()))
                 continue;
 
             // If not, this vertex belongs to the first vertex that put it here
-            visitedBy.put(edge.getValue1().getValue0().getIdentifier(), edge.getValue0());
+            visitedBy.put(node.getIdentifier(), node.getParent());
 
-            // Test if we've reached the goal
-            int[] playerPos = edge.getValue1().getValue0().getPlayerPosition();
-            if (playerPos[0] == level.goalPos.getValue0() &&
-                playerPos[2] == level.goalPos.getValue0() &&
-                playerPos[1] == level.goalPos.getValue1() &&
-                playerPos[3] == level.goalPos.getValue1()) {
-                goalNode = edge.getValue1().getValue0();
+            // Have we reached the goal
+            if (node.getPlayer().isVertical() && node.getPlayer().getFirst().equals(level.goalPos())) {
+                backtrackingNode = node;
                 break;
             }
 
             // Last thing is to add the children to the queue
-            for (Pair<StateNode, String> childStateMove : edge.getValue1().generateChildren(level)) {
-                queue.addFirst(new Pair<>(edge.getValue1(), childStateMove));
-            }
+            workQueue.addAll(node.generateChildren(level));
         }
+
+        if (backtrackingNode == null)
+            return "";
 
         // Assume the goal was found
-        StateNode node = goalNode;
-        StringBuilder moves = new StringBuilder();
+        StringBuilder movePattern = new StringBuilder();
         while (true) {
-            StateNode parent = visitedBy.get(node.getIdentifier());
+            StateNode parent = visitedBy.get(backtrackingNode.getIdentifier());
             if (parent == null)
                 break;
-
-            node = parent;
+            movePattern.insert(0, backtrackingNode.getMoveDescription() + "\n");
+            backtrackingNode = parent;
         }
 
-        return "";
+        return movePattern.toString();
     }
 }

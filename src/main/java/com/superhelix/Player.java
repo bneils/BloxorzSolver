@@ -26,7 +26,11 @@ public class Player {
         isSplit = (dx == 1 && dy == 0 || dx == 0 && dy == 1);
     }
 
-    public Player movedPlayer(Direction direction, boolean switchFocus) {
+    public boolean isVertical() {
+        return first.x() == second.x() && first.y() == second.y();
+    }
+
+    public Player newMovedPlayer(Direction direction, boolean switchFocus) {
         // Switch focus is ignored if isSplit is false
         Position newFirst, newSecond;
         int newFocus = focus;
