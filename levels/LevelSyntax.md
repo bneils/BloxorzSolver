@@ -41,3 +41,4 @@ any bridge tiles `a` on.
 Switches default to being 'soft' and bridges default to being 'on'.
 Bridges are on by default since teleportation switches use the same scheme
 and rely on the bridges being treated as regular tiles.
+The order of the arguments for the teleport verb matter, since the first location will be where the player controller is placed.

@@ -2,32 +2,26 @@ package com.superhelix;
 
 import org.javatuples.Pair;
 
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 public class StateNode implements Cloneable {
     private final int distance;   // The number of moves traveled from start to be here
-    private final int x1, y1, x2, y2;     // The player's position
+    private final Player player;
     private final Map<Character, Boolean> bridgeStates;
     private final String identifier;
     private final boolean isSplit;
 
-    public StateNode(int distance, int x1, int y1, int x2, int y2, Map<Character, Boolean> bridgeStates, StateNode prev) {
+    public StateNode(int distance, int x1, int y1, int x2, int y2, LinkedHashMap<Character, Boolean> bridgeStates, StateNode prev) {
         this.distance = distance;
-        this.x1 = x1;
-        this.y1 = y1;
-        this.x2 = x2;
-        this.y2 = y2;
+        player = new Player(new Position(x1, y1), new Position(x2, y2));
         this.bridgeStates = bridgeStates;
 
-        String loc = "%d,%d,%d,%d".formatted(x1, y1, x2, y2);
         StringBuilder states = new StringBuilder();
-        for (Object k : bridgeStates.keySet().stream().sorted().toArray()) {
-            String bit = bridgeStates.get((Character) k) ? "1" : "0";
-            states.append(bit);
+        // bridgeStates must be a LinkedHashMap
+        for (boolean state : bridgeStates.values()) {
+            states.append(state ? "1" : "0");
         }
-        identifier = loc + "|" + states;
+        identifier = player.formatIdentifier() + "," + states;
         isSplit = coordsAreSplit(x1, y1, x2, y2);
     }
 
@@ -39,57 +33,16 @@ public class StateNode implements Cloneable {
 
     public String getIdentifier() { return identifier; }
 
-    private ArrayList<int[]> generateNextPositions() {
-        ArrayList<int[]> possibleNext = new ArrayList<>();
-        int[][] offsets = new int[][] { {-1, 0}, {1, 0}, {0, -1}, {0, 1} };
+    private List<PlayerChange> generateNextPositions() {
+        List<PlayerChange> possibleNext = new ArrayList<>();
+        Direction[] directions = new Direction[]{Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT};
 
-        for (int[] offset : offsets) {
-            int i = offset[0], j = offset[1];
-            if (isSplit) {
-                possibleNext.add(new int[]{x1 + j, y1 + i, x2, y2});
-                possibleNext.add(new int[]{x1, y1, x2 + j, y2 + i});
-            } else {
-                int x1_next = x1;
-                int y1_next = y1;
-                int x2_next = x2;
-                int y2_next = y2;
-
-                if (x1 == x2 && y1 == y2) {
-                    // if it's vertical each next state is horizontal
-                    if (j != 0) {
-                        x1_next = (j == 1) ? x1 + 1 : x1 - 2;
-                        x2_next = x1_next + 1;
-                    } else {
-                        y1_next = (i == 1) ? y1 + 1 : y1 - 2;
-                        y2_next = y1_next + 1;
-                    }
-                } else {
-                    if (j != 0) { // left, right
-                        if (x1 != x2) {
-                            // <- ## ->
-                            x2_next = x1_next = ((j > 0) ? x2 : x1) + j;
-                        } else {
-                            // <- # ->
-                            // <- # ->
-                            x2_next = x1_next = x1 + j;
-                        }
-                    } else if (i != 0) { // up, down
-                        if (x1 != x2) {
-                            // ^^
-                            // ##
-                            // vv
-                            y2_next = y1_next = y1 + i;
-                        } else {
-                            // ^
-                            // #
-                            // #
-                            // v
-                            y1_next = y2_next = ((i > 0) ? y2 : y1) + i;
-                        }
-                    }
-                }
-
-                possibleNext.add(new int[]{x1_next, y1_next, x2_next, y2_next});
+        for (Direction direction : directions) {
+            possibleNext.add(new PlayerChange(player.movedPlayer(direction, false), direction.toString()));
+            if (player.isSplit()) {
+                possibleNext.add(new PlayerChange(
+                        player.movedPlayer(direction, true),
+                        "SPACE " + direction));
             }
         }
 
@@ -104,11 +57,13 @@ public class StateNode implements Cloneable {
         }
     }
 
-    public ArrayList<StateNode> generateChildren(Level level) {
-        ArrayList<StateNode> children = new ArrayList<>();
-        ArrayList<ArrayList<Tile>> cells = level.applyState(bridgeStates);
+    public ArrayList<Pair<StateNode, String>> generateChildren(Level level) {
+        List<Pair<StateNode, String>> children = new ArrayList<>();
+        List<List<Tile>> cells = level.applyState(bridgeStates);
 
-        for (int[] pos : generateNextPositions()) {
+        for (Pair<int[], String> posMove : generateNextPositions()) {
+            int[] pos = posMove.getValue0();
+            String move = posMove.getValue1();
             int x1 = pos[0], y1 = pos[1], x2 = pos[2], y2 = pos[3];
 
             Tile tileA, tileB, tileC, tileD;
@@ -143,11 +98,11 @@ public class StateNode implements Cloneable {
             // now, we need to register any switch events and create a new set of bridge states
             Map<Character, Boolean> newBridgeStates = new TreeMap<>(bridgeStates);
             for (Map.Entry<Character, SwitchAttribute> switchElement : level.switchAttributes.entrySet()) {
-                ArrayList<Pair<Integer, Integer>> positions = level.elementPositions.get(switchElement.getKey());
-                for (Pair<Integer, Integer> position : positions) {
+                List<Position> positions = level.elementPositions.get(switchElement.getKey());
+                for (Position position : positions) {
                     boolean activated;
-                    int x = position.getValue0();
-                    int y = position.getValue1();
+                    int x = position.x();
+                    int y = position.y();
                     if (switchElement.getValue().getActivationType() == ActivationType.SOFT) {
                         activated = (x1 == x && y1 == y) || (x2 == x && y2 == y);
                     } else {
@@ -162,18 +117,18 @@ public class StateNode implements Cloneable {
                     char[] tpLocs = switchElement.getValue().getTeleportLocations();
                     if (tpLocs != null) {
                         // simply change the location if we're teleporting
-                        ArrayList<Pair<Integer, Integer>> ptA = level.elementPositions.get(tpLocs[0]);
-                        ArrayList<Pair<Integer, Integer>> ptB = level.elementPositions.get(tpLocs[1]);
+                        List<Position> ptA = level.elementPositions.get(tpLocs[0]);
+                        List<Position> ptB = level.elementPositions.get(tpLocs[1]);
 
                         if (ptA.size() == 1 && ptB.size() == 1) {
-                            x1 = ptA.get(0).getValue0();
-                            y1 = ptA.get(0).getValue1();
-                            x2 = ptB.get(0).getValue0();
-                            y2 = ptB.get(0).getValue1();
+                            x1 = ptA.get(0).x();
+                            y1 = ptA.get(0).y();
+                            x2 = ptB.get(0).x();
+                            y2 = ptB.get(0).y();
                         }
                     }
 
-                    ArrayList<BridgeAction> actions = switchElement.getValue().getBridgeActions();
+                    List<BridgeAction> actions = switchElement.getValue().getBridgeActions();
                     for (BridgeAction action : actions) {
                         char bridge = action.bridgeId();
                         BridgeEffect effect = action.effect();
@@ -189,7 +144,7 @@ public class StateNode implements Cloneable {
             }
 
             StateNode node = new StateNode(distance + 1, x1, y1, x2, y2, newBridgeStates, this);
-            children.add(node);
+            children.add(new Pair<>(node, move));
         }
 
         return children;

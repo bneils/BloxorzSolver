@@ -48,7 +48,7 @@ public class LevelUtils {
             throws LevelParserException {
 
         ActivationType activationType = ActivationType.SOFT;
-        ArrayList<BridgeAction> actions = new ArrayList<>();
+        List<BridgeAction> actions = new ArrayList<>();
         char[] teleportLocations = null;
 
         for (int i = 1; i < tokens.length; ++i) {
@@ -104,7 +104,7 @@ public class LevelUtils {
                     level.switchAttributes.put(letterId, getSwitchAttribute(tokens, lineno));
             } else {
                 // build next row of level
-                ArrayList<Tile> levelRow = new ArrayList<>();
+                List<Tile> levelRow = new ArrayList<>();
                 for (char c : line.toCharArray()) {
                     Tile tile;
                     int x = levelRow.size();
@@ -119,7 +119,7 @@ public class LevelUtils {
                                 throw new LevelParserException("Can only have one initial player position on line %d column %d"
                                         .formatted(lineno, x + 1));
                             }
-                            level.playerPos = new Pair<>(x, y);
+                            level.playerPos = new Position(x, y);
                         }
                         case '^' -> {
                             tile = Tile.STRONG_FLOOR;
@@ -127,7 +127,7 @@ public class LevelUtils {
                                 throw new LevelParserException("Can only have one goal position on line %d column %d"
                                         .formatted(lineno, x + 1));
                             }
-                            level.goalPos = new Pair<>(x, y);
+                            level.goalPos = new Position(x, y);
                         }
                         default -> {
                             tile = Tile.STRONG_FLOOR;
@@ -137,10 +137,10 @@ public class LevelUtils {
                             }
 
                             // Ensure c is in the map then add next coordinate
-                            ArrayList<Pair<Integer, Integer>> positions = level.elementPositions
+                            List<Position> positions = level.elementPositions
                                     .computeIfAbsent(c, k -> new ArrayList<>());
 
-                            level.elementPositions.get(c).add(new Pair<>(x, y));
+                            level.elementPositions.get(c).add(new Position(x, y));
 
                             // Default bridge condition is ON
                             if (Character.isLowerCase(c)) {

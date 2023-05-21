@@ -14,6 +14,11 @@ The edges between nodes (states) are formed when the player performs a move.
 For example, if a player moves onto a switch, the next node has a different position and
 a different level state (with the activated bridge).
 
+## In layman terms
+Imagine you are a 200 IQ genius who can look at every possibly branching move simultaneously.
+If you could, it would be trivial to draw a line between them all that solved the level.
+That's what this program does.
+
 ## Optimizations from this approach
 Since it is being conceptualized as a graph, each node can have 1 incoming edge and multiple outgoing edges.
 Despite there being multiple ways to reach a state, each node will be marked visited as soon as the first state reaches
