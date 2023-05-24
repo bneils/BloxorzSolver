@@ -71,21 +71,23 @@ public class StateNode {
         List<List<Tile>> tiles = level.applyState(bridgeStates);
 
         for (PlayerChange change : generateNextPositions()) {
+            Player newPlayer = change.player();
+
             // The PlayerChanges alone are not guaranteed to be valid, as some may fall off an edge or break a weak tile
-            int x1 = change.player().getFirst().x();
-            int y1 = change.player().getFirst().y();
-            int x2 = change.player().getSecond().x();
-            int y2 = change.player().getSecond().y();
+            int x1 = newPlayer.getFirst().x();
+            int y1 = newPlayer.getFirst().y();
+            int x2 = newPlayer.getSecond().x();
+            int y2 = newPlayer.getSecond().y();
 
             Tile tileA, tileB, tileC, tileD;
             tileB = getTileOrVoid(tiles, x1, y1);
             tileC = getTileOrVoid(tiles, x2, y2);
 
             // One fell off the platform
-            if (player.isSplit()) {
+            if (newPlayer.isSplit()) {
                 if (tileB == Tile.VOID || tileC == Tile.VOID)
                     continue;
-            } else if (player.isVertical()) {
+            } else if (newPlayer.isVertical()) {
                 // Would break a weak tile or fell off
                 if (tileB == Tile.VOID || tileB == Tile.WEAK_FLOOR)
                     continue;
@@ -106,8 +108,6 @@ public class StateNode {
                         || tileC == Tile.VOID && tileD == Tile.VOID)
                     continue;
             }
-
-            Player newPlayer = change.player();
 
             // (x1, y1) & (x2, y2) should be valid
             // now, we need to register any switch events and create a new set of bridge states

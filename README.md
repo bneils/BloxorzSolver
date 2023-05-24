@@ -43,3 +43,6 @@ while DFS uses a stack (FILO).
 
 ## Why Java?
 I haven't used it for any projects and I think I should get familiar with it.
+
+## Cheat codes
+If you want to skip to a different [level](https://www.newsweek.com/bloxorz-codes-level-33-cheats-walkthrough-how-play-31-beat-tips-1288666).

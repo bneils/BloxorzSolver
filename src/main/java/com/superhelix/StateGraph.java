@@ -1,7 +1,6 @@
 package com.superhelix;
 
 import java.util.*;
-import org.javatuples.Pair;
 
 public class StateGraph {
     /**
@@ -9,7 +8,7 @@ public class StateGraph {
      * @param level The level to solve
      * @return The keys to be pressed to complete the level.
      */
-    public static String generateMinimalMovePattern(Level level) {
+    public static List<String> generateMinimalMovePattern(Level level) {
         // visitedBy will hold a mapping from the StateNode ID to StateNode parent
         HashSet<String> visited = new HashSet<>();
         Queue<StateNode> workQueue = new LinkedList<>();
@@ -45,15 +44,15 @@ public class StateGraph {
         }
 
         if (backtrackingNode == null)
-            return "";
+            return new ArrayList<>();
 
         // Assume the goal was found
-        StringBuilder movePattern = new StringBuilder();
+        List<String> movePattern = new ArrayList<>();
         while (backtrackingNode.getParent() != null) {
-            movePattern.insert(0, backtrackingNode.getMoveDescription() + "\n");
+            movePattern.add(0, backtrackingNode.getMoveDescription());
             backtrackingNode = backtrackingNode.getParent();
         }
 
-        return movePattern.toString();
+        return movePattern;
     }
 }
