@@ -2,8 +2,6 @@ package com.superhelix;
 
 import java.util.*;
 
-import org.javatuples.Pair;
-
 // Contains the original level
 public record Level(
         List<List<Tile>> tiles,
@@ -29,9 +27,5 @@ public record Level(
         }
 
         return newTiles;
-    }
-
-    public Tile getTile(int x, int y) {
-        return tiles.get(y).get(x);
     }
 }

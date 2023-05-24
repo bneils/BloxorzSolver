@@ -1,6 +1,6 @@
 # BloxorzSolver
 This program was inspired by a Jerma clip at 12 AM where he was playing this.
-It reminded me of playing it in elementary school on https://coolmathgames.com.
+It reminded me of playing it in elementary school on [Cool Math Games](https://www.coolmathgames.com/0-bloxorz).
 When I revisited the game, I thought of the problem of finding a minimal move pattern to
 complete a level. It seems hard at first, but if you frame the problem as a massive graph of states,
 then you can apply graph traversal algorithms like Breadth First Search (BFS) to it.

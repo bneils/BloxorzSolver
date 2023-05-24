@@ -5,25 +5,41 @@ public class Player {
     /// If the player is disconnected, the order in which the positions are stored is arbitrary, but the two
     /// coordinates will be sorted by the x-coordinate and then the y-coordinate (if x are the same) before being
     /// put in the identifier.
-    private final Position first, second;
+    private Position first, second;
     private boolean isSplit;
-    private int focus = 0;
+    private int focus;
 
     public Player(Position first, Position second) {
         this.first = first;
         this.second = second;
-        updateIsSplit();
+        isSplit = calculateIsSplit(first, second);
+        focus = 0;
+        sortPositions();
     }
 
     public Player(Position first, Position second, int focus) {
-        this(first, second);
-        this.focus = focus;
+        this.first = first;
+        this.second = second;
+        isSplit = calculateIsSplit(first, second);
+        if (isSplit)
+            this.focus = focus;
+        sortPositions();
     }
 
-    private void updateIsSplit() {
+    private void sortPositions() {
+        // Sort by x, but also by y to break the tie
+        if (first.x() > second.x() || (first.x() == second.x() && first.y() > second.y())) {
+            Position temp = first;
+            first = second;
+            second = temp;
+            focus = 1 - focus;
+        }
+    }
+
+    public boolean calculateIsSplit(Position first, Position second) {
         int dx = Math.abs(first.x() - second.x());
         int dy = Math.abs(first.y() - second.y());
-        isSplit = (dx == 1 && dy == 0 || dx == 0 && dy == 1);
+        return !(dx <= 1 && dy == 0 || dx == 0 && dy <= 1);
     }
 
     public boolean isVertical() {
@@ -33,16 +49,14 @@ public class Player {
     public Player newMovedPlayer(Direction direction, boolean switchFocus) {
         // Switch focus is ignored if isSplit is false
         Position newFirst, newSecond;
-        int newFocus = focus;
 
         int[] offset = direction.toOffset();
         int dx = offset[0];
         int dy = offset[1];
-        
+
+        int newFocus = (switchFocus) ? 1 - focus : focus;
+
         if (isSplit) {
-            if (switchFocus)
-                newFocus = 1 - focus;
-            
             if (newFocus == 0) {
                 newFirst = first.addTo(dx, dy);
                 newSecond = second.addTo(0, 0);
@@ -93,21 +107,12 @@ public class Player {
             newFirst = new Position(x1, y1);
             newSecond = new Position(x2, y2);
         }
+        // newFocus will be ignored if the player isn't split
         return new Player(newFirst, newSecond, newFocus);
     }
 
     public String formatIdentifier() {
-        Position low = first;
-        Position high = second;
-
-        // Sort by x, but also by y to break the tie
-        if (low.x() > high.x() || (low.x() == high.x() && low.y() > high.y())) {
-            Position temp = low;
-            low = high;
-            high = temp;
-        }
-
-        String id = "(%d,%d),(%d,%d),".formatted(low.x(), low.y(), high.x(), high.y());
+        String id = "(%d,%d),(%d,%d),".formatted(first.x(), first.y(), second.x(), second.y());
         if (isSplit)
             id += Integer.toString(focus);
         return id;

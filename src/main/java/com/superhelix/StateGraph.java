@@ -11,16 +11,17 @@ public class StateGraph {
      */
     public static String generateMinimalMovePattern(Level level) {
         // visitedBy will hold a mapping from the StateNode ID to StateNode parent
-        HashMap<String, StateNode> visitedBy = new HashMap<>();
+        HashSet<String> visited = new HashSet<>();
         Queue<StateNode> workQueue = new LinkedList<>();
 
         // Gather all the starting bridge states and use it for the first state node
         Map<Character, Boolean> bridgeStates = new TreeMap<>();
         for (Map.Entry<Character, TileMetadata> entry : level.tilesMetadata().entrySet())
-            bridgeStates.put(entry.getKey(), entry.getValue().getStartingBridgeState());
+            if (entry.getValue().isBridge())
+                bridgeStates.put(entry.getKey(), entry.getValue().getStartingBridgeState());
 
-        StateNode startingNode = new StateNode(
-                0, level.playerPos(), level.playerPos(), null, "", bridgeStates);
+        StateNode startingNode = new StateNode(new Player(level.playerPos(), level.playerPos()),
+                null, "", bridgeStates);
 
         workQueue.add(startingNode);
         StateNode backtrackingNode = null;
@@ -29,11 +30,9 @@ public class StateGraph {
             StateNode node = workQueue.remove();
 
             // Skip if we've already visited this node (property of BFS)
-            if (visitedBy.containsKey(node.getIdentifier()))
+            if (visited.contains(node.getIdentifier()))
                 continue;
-
-            // If not, this vertex belongs to the first vertex that put it here
-            visitedBy.put(node.getIdentifier(), node.getParent());
+            visited.add(node.getIdentifier());
 
             // Have we reached the goal
             if (node.getPlayer().isVertical() && node.getPlayer().getFirst().equals(level.goalPos())) {
@@ -50,12 +49,9 @@ public class StateGraph {
 
         // Assume the goal was found
         StringBuilder movePattern = new StringBuilder();
-        while (true) {
-            StateNode parent = visitedBy.get(backtrackingNode.getIdentifier());
-            if (parent == null)
-                break;
+        while (backtrackingNode.getParent() != null) {
             movePattern.insert(0, backtrackingNode.getMoveDescription() + "\n");
-            backtrackingNode = parent;
+            backtrackingNode = backtrackingNode.getParent();
         }
 
         return movePattern.toString();

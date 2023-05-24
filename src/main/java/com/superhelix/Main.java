@@ -13,6 +13,7 @@ public class Main {
             e.printStackTrace();
             System.exit(1);
         }
+        //down,right,right,right,right,right,right,down
         System.out.println(StateGraph.generateMinimalMovePattern(level));
     }
 }

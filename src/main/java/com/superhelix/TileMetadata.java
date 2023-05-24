@@ -8,15 +8,23 @@ public class TileMetadata {
     private boolean startingBridgeState;
     private List<Position> positions;
 
-    public TileMetadata() {
+    private final char id;
+
+    public TileMetadata(char c) {
         // Just good defaults
         positions = new ArrayList<>();
         startingBridgeState = true;
+        id = c;
     }
-    public TileMetadata(SwitchAttribute switchAttribute, boolean startingBridgeStatus, List<Position> positions) {
+    public TileMetadata(char c, SwitchAttribute switchAttribute, boolean startingBridgeStatus, List<Position> positions) {
         this.switchAttribute = switchAttribute;
         this.startingBridgeState = startingBridgeStatus;
         this.positions = positions;
+        id = c;
+    }
+
+    public boolean isBridge() {
+        return Character.isLowerCase(id);
     }
 
     public SwitchAttribute getSwitchAttribute() { return switchAttribute; }

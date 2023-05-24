@@ -2,18 +2,16 @@ package com.superhelix;
 
 import java.util.*;
 
-public class StateNode implements Cloneable {
-    private final int distance;   // The number of moves traveled from start to be here
+public class StateNode {
     private final Player player;
     private final Map<Character, Boolean> bridgeStates;
     private final String identifier;
     private final StateNode parent;
     private final String moveDescription;
 
-    public StateNode(int dist, Position a, Position b, StateNode parentNode, String moveDesc,
+    public StateNode(Player player, StateNode parentNode, String moveDesc,
                      Map<Character, Boolean> bridgeStates) {
-        distance = dist;
-        player = new Player(a, b);
+        this.player = player;
         this.bridgeStates = bridgeStates;
         parent = parentNode;
         moveDescription = moveDesc;
@@ -63,6 +61,11 @@ public class StateNode implements Cloneable {
         }
     }
 
+    /**
+     * Builds a list of states that could be next after a single move at the current state without the player falling
+     * @param level The level
+     * @return A list of StateNodes
+     */
     public List<StateNode> generateChildren(Level level) {
         List<StateNode> children = new ArrayList<>();
         List<List<Tile>> tiles = level.applyState(bridgeStates);
@@ -79,10 +82,10 @@ public class StateNode implements Cloneable {
             tileC = getTileOrVoid(tiles, x2, y2);
 
             // One fell off the platform
-            if (player.isSplit() && (tileB == Tile.VOID || tileC == Tile.VOID))
-                continue;
-
-            if (player.isVertical()) {
+            if (player.isSplit()) {
+                if (tileB == Tile.VOID || tileC == Tile.VOID)
+                    continue;
+            } else if (player.isVertical()) {
                 // Would break a weak tile or fell off
                 if (tileB == Tile.VOID || tileB == Tile.WEAK_FLOOR)
                     continue;
@@ -103,6 +106,8 @@ public class StateNode implements Cloneable {
                         || tileC == Tile.VOID && tileD == Tile.VOID)
                     continue;
             }
+
+            Player newPlayer = change.player();
 
             // (x1, y1) & (x2, y2) should be valid
             // now, we need to register any switch events and create a new set of bridge states
@@ -135,10 +140,10 @@ public class StateNode implements Cloneable {
                             List<Position> ptB = level.tilesMetadata().get(tpLocs[1]).getPositions();
 
                             if (ptA.size() == 1 && ptB.size() == 1) {
-                                x1 = ptA.get(0).x();
-                                y1 = ptA.get(0).y();
-                                x2 = ptB.get(0).x();
-                                y2 = ptB.get(0).y();
+                                newPlayer = new Player(
+                                        ptA.get(0),
+                                        ptB.get(0)
+                                );
                             }
                         }
 
@@ -156,22 +161,12 @@ public class StateNode implements Cloneable {
                     }
                 }
             }
-            Position first = new Position(x1, y1);
-            Position second = new Position(x2, y2);
-            StateNode node = new StateNode(distance + 1, first, second,
-                    this, change.description(), newBridgeStates);
+            StateNode node = new StateNode(newPlayer, this, change.description(), newBridgeStates);
             children.add(node);
         }
 
         return children;
     }
-
-    @Override
-    protected Object clone() throws CloneNotSupportedException {
-        return super.clone();
-    }
-
-    public int getDistance() { return distance; }
 
     public Player getPlayer() { return player; }
 

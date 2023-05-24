@@ -102,7 +102,7 @@ public class LevelUtils {
                 char letterId = toLetter(tokens[0]);
 
                 if (!tilesMetadata.containsKey(letterId))
-                    tilesMetadata.put(letterId, new TileMetadata());
+                    tilesMetadata.put(letterId, new TileMetadata(letterId));
                 TileMetadata meta = tilesMetadata.get(letterId);
 
                 if (Character.isLowerCase(letterId)) // Bridge
@@ -145,7 +145,7 @@ public class LevelUtils {
 
                             // Ensure c is in the map then add next coordinate
                             if (!tilesMetadata.containsKey(c))
-                                tilesMetadata.put(c, new TileMetadata());
+                                tilesMetadata.put(c, new TileMetadata(c));
                             TileMetadata meta = tilesMetadata.get(c);
                             if (meta.getPositions() == null)
                                 meta.setPositions(new ArrayList<>());
