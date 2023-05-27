@@ -1,7 +1,7 @@
 package com.superhelix;
 
 import java.util.*;
-
+//TODO:This will shit its pants if it a bridge is uppercase
 public class StateNode {
     private final Player player;
     private final Map<Character, Boolean> bridgeStates;
@@ -133,22 +133,16 @@ public class StateNode {
                             continue;
 
                         // We can then invoke every action that the switch attribute contains
-                        char[] tpLocs = attr.teleportLocations();
-                        if (tpLocs != null) {
-                            // simply change the position if we're teleporting
-                            List<Position> ptA = level.tilesMetadata().get(tpLocs[0]).getPositions();
-                            List<Position> ptB = level.tilesMetadata().get(tpLocs[1]).getPositions();
-
-                            if (ptA.size() == 1 && ptB.size() == 1) {
-                                newPlayer = new Player(
-                                        ptA.get(0),
-                                        ptB.get(0)
-                                );
-                            }
+                        Position[] locations = attr.teleportLocations();
+                        if (locations != null) {
+                            newPlayer = new Player(
+                                    locations[0],
+                                    locations[1]
+                            );
                         }
 
-                        for (BridgeAction action : attr.bridgeActions()) {
-                            char bridge = action.bridgeId();
+                        for (TileAction action : attr.bridgeActions()) {
+                            char bridge = action.tileId();
                             BridgeEffect effect = action.effect();
                             boolean bridgeState;
                             switch (effect) {

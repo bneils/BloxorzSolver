@@ -6,7 +6,7 @@ public class Player {
     /// coordinates will be sorted by the x-coordinate and then the y-coordinate (if x are the same) before being
     /// put in the identifier.
     private Position first, second;
-    private boolean isSplit;
+    private final boolean isSplit;
     private int focus;
 
     public Player(Position first, Position second) {
@@ -59,9 +59,9 @@ public class Player {
         if (isSplit) {
             if (newFocus == 0) {
                 newFirst = first.addTo(dx, dy);
-                newSecond = second.addTo(0, 0);
+                newSecond = second;
             } else {
-                newFirst = first.addTo(0, 0);
+                newFirst = first;
                 newSecond = second.addTo(dx, dy);
             }
         } else {
@@ -112,10 +112,7 @@ public class Player {
     }
 
     public String formatIdentifier() {
-        String id = "(%d,%d),(%d,%d),".formatted(first.x(), first.y(), second.x(), second.y());
-        if (isSplit)
-            id += Integer.toString(focus);
-        return id;
+        return "(%d,%d),(%d,%d),".formatted(first.x(), first.y(), second.x(), second.y());
     }
 
     public Position getFirst() { return first; }

@@ -1,196 +1,164 @@
 package com.superhelix;
 
-import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.*;
 import java.util.*;
 
 public class LevelUtils {
-    private static char toLetter(String s) throws LevelParserException {
-        if (!(s.length() == 1 && Character.isAlphabetic(s.charAt(0))))
-            throw new LevelParserException("String '%s' is not a letter".formatted(s));
-        return s.charAt(0);
+    private static char toTileCharacter(String s) throws LevelParserException {
+        if (s.length() > 1)
+            throw new LevelParserException("Name '%s' is too long".formatted(s));
+        char c = s.charAt(0);
+        if (!(Character.isAlphabetic(c) || c == '$' || c == '^'))
+            throw new LevelParserException("Name '%c' is not valid".formatted(c));
+        return c;
     }
 
-    private static String[] getTokens(String line, int lineno) throws LevelParserException {
-        String[] parts = line.split(":");
-        if (parts.length > 2)
-            throw new LevelParserException("No more than one ':' allowed here on line %d\n"
-                    .formatted(lineno));
-        String identifier = parts[0].strip();
-        String bridgeId = Character.toString(toLetter(identifier));
-
-        // ID, Attr1, Attr2, ...
-        List<String> list = new ArrayList<>(Arrays.asList(parts[1].toLowerCase().split(",")));
-        list.replaceAll(String::toLowerCase); // Before we add the ID, the rest should be lowercase
-        list.add(0, bridgeId);
-        list.replaceAll(String::strip);
-
-        return list.toArray(new String[0]);
-    }
-
-    private static boolean getInitialBridgeState(String[] tokens, int lineno) throws LevelParserException {
-        // example, a: on
-        if (tokens.length != 2) {
-            throw new LevelParserException("Wrong number of attributes for bridge '%s' on line %d"
-                    .formatted(tokens[0], lineno));
-        }
-        if (tokens[1].equals("on"))
-            return true;
-        if (tokens[1].equals("off"))
-            return false;
-
-        throw new LevelParserException("Invalid bridge attribute for '%s' ('%s') on line %d"
-                .formatted(tokens[0], tokens[1].strip(), lineno));
-    }
-
-    private static SwitchAttribute getSwitchAttribute(String[] tokens, int lineno)
-            throws LevelParserException {
-
-        ActivationType activationType = ActivationType.SOFT;
-        List<BridgeAction> actions = new ArrayList<>();
-        char[] teleportLocations = null;
-
-        for (int i = 1; i < tokens.length; ++i) {
-            String[] attrWords = tokens[i]
-                    .strip()
-                    .toLowerCase() // case in-sensitive
-                    .split("\\s");
-
-            // verify input first
-            switch (attrWords[0]) {
-                case "toggle", "off", "on" -> {
-                    if (attrWords.length != 2)
-                        throw new LevelParserException("Attribute '%s' on line %d has wrong number of arguments"
-                                .formatted(attrWords[0], lineno));
-                }
-                case "teleport" -> {
-                    if (attrWords.length != 3) {
-                        throw new LevelParserException(
-                                "Switch teleport attribute has %d arguments (expected 2) on line %d"
-                                        .formatted(attrWords.length, lineno));
-                    }
-                }
-            }
-
-            switch (attrWords[0]) {
-                case "soft" -> activationType = ActivationType.SOFT;
-                case "hard" -> activationType = ActivationType.HARD;
-                case "teleport" -> teleportLocations = new char[] {toLetter(attrWords[1]), toLetter(attrWords[2])};
-                case "toggle" -> actions.add(new BridgeAction(toLetter(attrWords[1]), BridgeEffect.TOGGLE));
-                case "off" ->    actions.add(new BridgeAction(toLetter(attrWords[1]), BridgeEffect.OFF   ));
-                case "on" ->     actions.add(new BridgeAction(toLetter(attrWords[1]), BridgeEffect.ON    ));
-                default -> throw new LevelParserException("Unknown attribute '%s' on line %d"
-                        .formatted(attrWords[0], lineno));
-            }
-        }
-
-        return new SwitchAttribute(activationType, actions, teleportLocations);
-    }
-
-    public static Level loadFromFile(String filename) throws FileNotFoundException, LevelParserException {
-        File file = new File(filename);
-        Scanner reader = new Scanner(file);
+    public static Level loadFromFile(String levelFilename, String infoFilename) throws FileNotFoundException, LevelParserException {
+        Scanner levelScanner = new Scanner(new File(levelFilename));
 
         Map<Character, TileMetadata> tilesMetadata = new TreeMap<>();
         List<List<Tile>> tiles = new ArrayList<>();
-        Position playerPos = null, goalPos = null;
+        int lineno;
 
-        for (int lineno = 1; reader.hasNextLine(); ++lineno) {
-            String line = reader.nextLine();
-            if (line.contains(":")) {
-                String[] tokens = getTokens(line, lineno);
-                char letterId = toLetter(tokens[0]);
-
-                if (!tilesMetadata.containsKey(letterId))
-                    tilesMetadata.put(letterId, new TileMetadata(letterId));
-                TileMetadata meta = tilesMetadata.get(letterId);
-
-                if (Character.isLowerCase(letterId)) // Bridge
-                    meta.setStartingBridgeState(getInitialBridgeState(tokens, lineno));
-                else // Switch
-                    meta.setSwitchAttribute(getSwitchAttribute(tokens, lineno));
-            } else {
-                // build next row of level
-                List<Tile> levelRow = new ArrayList<>();
-                for (char c : line.toCharArray()) {
-                    Tile tile;
-                    int x = levelRow.size();
-                    int y = tiles.size();
-                    switch (c) {
-                        case ' ' -> tile = Tile.VOID;
-                        case '!' -> tile = Tile.WEAK_FLOOR;
-                        case '@' -> tile = Tile.STRONG_FLOOR;
-                        case '$' -> {
-                            tile = Tile.STRONG_FLOOR;
-                            if (playerPos != null) {
-                                throw new LevelParserException("Can only have one initial player position on line %d column %d"
-                                        .formatted(lineno, x + 1));
-                            }
-                            playerPos = new Position(x, y);
-                        }
-                        case '^' -> {
-                            tile = Tile.STRONG_FLOOR;
-                            if (goalPos != null) {
-                                throw new LevelParserException("Can only have one goal position on line %d column %d"
-                                        .formatted(lineno, x + 1));
-                            }
-                            goalPos = new Position(x, y);
-                        }
-                        default -> {
-                            tile = Tile.STRONG_FLOOR;
-                            if (!Character.isAlphabetic(c)) {
-                                throw new LevelParserException("Unrecognized character '%c' on line %d column %d"
-                                        .formatted(c, lineno, x + 1));
-                            }
-
-                            // Ensure c is in the map then add next coordinate
-                            if (!tilesMetadata.containsKey(c))
-                                tilesMetadata.put(c, new TileMetadata(c));
-                            TileMetadata meta = tilesMetadata.get(c);
-                            if (meta.getPositions() == null)
-                                meta.setPositions(new ArrayList<>());
-
-                            meta.getPositions().add(new Position(x, y));
-                        }
+        // Builds tile matrix and records their locations
+        lineno = 1;
+        while (levelScanner.hasNextLine()) {
+            String line = levelScanner.nextLine();
+            int y = lineno - 1;
+            Tile tile;
+            List<Tile> tilesRow = new ArrayList<>();
+            for (int x = 0; x < line.length(); ++x) {
+                char c = line.charAt(x);
+                switch (c) {
+                    case ' ' -> tile = Tile.VOID;
+                    case '!' -> tile = Tile.WEAK_FLOOR;
+                    case '@' -> tile = Tile.STRONG_FLOOR;
+                    case '$', '^' -> {
+                        tile = Tile.STRONG_FLOOR;
+                        if (tilesMetadata.containsKey(c))
+                            throw new LevelParserException("Can only have one of '%c' on %d:%d"
+                                    .formatted(c, lineno, x + 1));
+                        tilesMetadata.put(c, new TileMetadata(
+                                c, null, true, new ArrayList<>(
+                                Collections.singleton(new Position(x, y)))
+                        ));
                     }
-                    levelRow.add(tile);
+                    default -> {
+                        tile = Tile.STRONG_FLOOR;
+                        if (!Character.isAlphabetic(c))
+                            throw new LevelParserException("Identifier character '%c' must be alphabetic on %d:%d"
+                                    .formatted(c, lineno, x + 1));
+                        if (!tilesMetadata.containsKey(c))
+                            tilesMetadata.put(c, new TileMetadata(c));
+                        TileMetadata meta = tilesMetadata.get(c);
+                        if (meta.getPositions() == null)
+                            meta.setPositions(new ArrayList<>());
+
+                        meta.getPositions().add(new Position(x, y));
+                    }
                 }
-                tiles.add(levelRow);
+                tilesRow.add(tile);
+            }
+            tiles.add(tilesRow);
+            ++lineno;
+        }
+
+        if (infoFilename != null && infoFilename.length() > 0) {
+            Scanner infoScanner = new Scanner(new File(infoFilename));
+            lineno = 1;
+            while (infoScanner.hasNextLine()) {
+                String line = infoScanner.nextLine();
+                String[] halves = line.split(":");
+                if (halves.length != 2)
+                    throw new LevelParserException("One colon must be used on line %d".formatted(lineno));
+                String name = halves[0];
+                if (name.length() > 1)
+                    throw new LevelParserException("Name before colon must be 1 character on line %d".formatted(lineno));
+                char c = name.charAt(0);
+                TileMetadata tileMetadata = tilesMetadata.get(c);
+                if (tileMetadata == null)
+                    throw new LevelParserException("Unknown tile character '%c' on line %d".formatted(c, lineno));
+
+                ActivationType activationType = ActivationType.SOFT;
+                List<TileAction> bridgeActions = new ArrayList<>();
+                Position[] teleportLocations = null;
+
+                for (String arg : halves[1].split(",")) {
+                    String singleAttr = arg.strip();
+                    String[] tokens = singleAttr.split("\\s+");
+                    if (tokens.length == 0)
+                        continue;
+                    switch (tokens[0]) {
+                        case "on", "off" -> {
+                            boolean bridgeState = tokens[0].equals("on");
+                            if (tokens.length == 1) {
+                                tileMetadata.setStartingBridgeState(bridgeState);
+                            } else if (tokens.length == 2) {
+                                if (tokens[1].length() != 1)
+                                    throw new LevelParserException(
+                                            "%s parameter must be 1 character on line %d".formatted(tokens[0], lineno));
+                                char bridgeId = tokens[1].charAt(0);
+                                if (!tilesMetadata.containsKey(bridgeId))
+                                    throw new LevelParserException(
+                                            "%s parameter does not exist in tile matrix on line %d".formatted(tokens[0], lineno));
+                                bridgeActions.add(
+                                        new TileAction(bridgeId, bridgeState ? BridgeEffect.ON : BridgeEffect.OFF));
+                            } else {
+                                throw new LevelParserException(
+                                        "invalid number of parameters for '%s' on line %d".formatted(tokens[0], lineno));
+                            }
+                        }
+                        case "toggle" -> {
+                            if (tokens.length != 2)
+                                throw new LevelParserException(
+                                        "expecting one parameter for toggle on line %d".formatted(lineno));
+                            if (tokens[1].length() != 1)
+                                throw new LevelParserException(
+                                        "%s parameter must be 1 character on line %d".formatted(tokens[0], lineno));
+                            char bridgeId = tokens[1].charAt(0);
+                            if (!tilesMetadata.containsKey(bridgeId))
+                                throw new LevelParserException(
+                                        "%s parameter does not exist in tile matrix on line %d".formatted(tokens[0], lineno));
+                            bridgeActions.add(new TileAction(bridgeId, BridgeEffect.TOGGLE));
+                        }
+                        case "teleport" -> {
+                            if (tokens.length != 3)
+                                throw new LevelParserException(
+                                        "expecting two parameters for teleport on line %d".formatted(lineno));
+                            if (tokens[1].length() != 1 || tokens[2].length() != 1)
+                                throw new LevelParserException(
+                                        "teleport parameter(s) must be 1 character on line %d".formatted(lineno));
+                            char firstBridgeId = tokens[1].charAt(0);
+                            char secondBridgeId = tokens[2].charAt(0);
+                            if (!tilesMetadata.containsKey(firstBridgeId) || !tilesMetadata.containsKey(secondBridgeId))
+                                throw new LevelParserException(
+                                        "%c or %c bridge does not exist in tile matrix on line %d".formatted(
+                                                firstBridgeId, secondBridgeId, lineno));
+                            List<Position> positions1 = tilesMetadata.get(firstBridgeId).getPositions();
+                            List<Position> positions2 = tilesMetadata.get(secondBridgeId).getPositions();
+                            if (positions1.size() > 1 || positions2.size() > 1)
+                                throw new LevelParserException("A teleport argument has more than 1 position on line %d".formatted(lineno));
+                            teleportLocations = new Position[]{positions1.get(0), positions2.get(0)};
+                        }
+                        case "soft" -> activationType = ActivationType.SOFT;
+                        case "hard" -> activationType = ActivationType.HARD;
+                        default ->
+                                throw new LevelParserException("unknown attribute '%s' on line %d".formatted(tokens[0], lineno));
+                    }
+                }
+
+                tileMetadata.setSwitchAttribute(new SwitchAttribute(activationType, bridgeActions, teleportLocations));
+                ++lineno;
             }
         }
 
-        if (playerPos == null)
+        if (!tilesMetadata.containsKey('$'))
             throw new LevelParserException("There is no initial player position");
-        if (goalPos == null)
+        if (!tilesMetadata.containsKey('^'))
             throw new LevelParserException("There is no goal position");
-        for (Map.Entry<Character, TileMetadata> entry : tilesMetadata.entrySet())
-            if (Character.isUpperCase(entry.getKey()) && entry.getValue().getSwitchAttribute() == null)
-                throw new LevelParserException("Switch '%c' does not have any attributes".formatted(entry.getKey()));
-
-        // Verify that teleport locations are unambiguous
-        for (Map.Entry<Character, TileMetadata> entry : tilesMetadata.entrySet()) {
-            SwitchAttribute attr = entry.getValue().getSwitchAttribute();
-            // We don't know for sure that this metadata is for a switch
-            // We could check the case for the character, but this is clearer
-            if (attr == null)
-                break;
-            char[] teleportLocations = attr.teleportLocations();
-            if (teleportLocations != null) {
-                for (char ch : teleportLocations) {
-                    if (!tilesMetadata.containsKey(ch)) {
-                        throw new LevelParserException("Switch '%c' has unknown teleport location '%c'"
-                                .formatted(entry.getKey(), ch));
-                    }
-                    if (tilesMetadata.get(ch).getPositions().size() != 1) {
-                        throw new LevelParserException("Switch '%c' has ambiguous teleport to tile '%c'"
-                                .formatted(entry.getKey(), ch));
-                    }
-                }
-            }
-        }
 
         return new Level(
-                tiles, playerPos, goalPos, tilesMetadata
+                tiles, tilesMetadata
         );
     }
 }

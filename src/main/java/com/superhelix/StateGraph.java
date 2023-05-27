@@ -18,8 +18,9 @@ public class StateGraph {
         for (Map.Entry<Character, TileMetadata> entry : level.tilesMetadata().entrySet())
             if (entry.getValue().isBridge())
                 bridgeStates.put(entry.getKey(), entry.getValue().getStartingBridgeState());
-
-        StateNode startingNode = new StateNode(new Player(level.playerPos(), level.playerPos()),
+        Position firstPlayerPos = level.tilesMetadata().get('$').getPositions().get(0);
+        Position goalPos = level.tilesMetadata().get('^').getPositions().get(0);
+        StateNode startingNode = new StateNode(new Player(firstPlayerPos, firstPlayerPos),
                 null, "", bridgeStates);
 
         workQueue.add(startingNode);
@@ -34,7 +35,7 @@ public class StateGraph {
             visited.add(node.getIdentifier());
 
             // Have we reached the goal
-            if (node.getPlayer().isVertical() && node.getPlayer().getFirst().equals(level.goalPos())) {
+            if (node.getPlayer().isVertical() && node.getPlayer().getFirst().equals(goalPos)) {
                 backtrackingNode = node;
                 break;
             }

@@ -1,0 +1,11 @@
+A: hard, on f
+D: hard, teleport D p
+B: soft, on e, off d
+C: soft, off a, off b
+E: soft, on d, toggle c
+f: off
+e: off
+c: off
+a: on
+b: on
+d: off

@@ -5,8 +5,6 @@ import java.util.*;
 // Contains the original level
 public record Level(
         List<List<Tile>> tiles,
-        Position playerPos,
-        Position goalPos,
         Map<Character, TileMetadata> tilesMetadata
 ) {
     public List<List<Tile>> applyState(Map<Character, Boolean> bridgeStates) {

@@ -1,0 +1,9 @@
+A: hard, teleport p E
+B: hard, teleport C A
+C: hard, teleport B C
+D: hard, teleport D B
+a: off
+b: off
+E: hard, on a
+F: hard, on b
+G: hard, teleport A B

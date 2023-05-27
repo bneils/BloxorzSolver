@@ -45,4 +45,4 @@ while DFS uses a stack (FILO).
 I haven't used it for any projects and I think I should get familiar with it.
 
 ## Cheat codes
-If you want to skip to a different [level](https://www.newsweek.com/bloxorz-codes-level-33-cheats-walkthrough-how-play-31-beat-tips-1288666).
+If you want to skip to a different [level](https://progameguides.com/bloxorz/all-bloxorz-cheat-codes-passcodes-for-every-stage/).
