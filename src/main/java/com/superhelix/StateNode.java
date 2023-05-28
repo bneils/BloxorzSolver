@@ -1,36 +1,45 @@
 package com.superhelix;
 
 import java.util.*;
-//TODO:This will shit its pants if it a bridge is uppercase
+
 public class StateNode {
     private final Player player;
-    private final Map<Character, Boolean> bridgeStates;
+    private final Map<Character, Boolean> states;
     private final String identifier;
     private final StateNode parent;
     private final String moveDescription;
 
     public StateNode(Player player, StateNode parentNode, String moveDesc,
-                     Map<Character, Boolean> bridgeStates) {
+                     Map<Character, Boolean> states) {
         this.player = player;
-        this.bridgeStates = bridgeStates;
+        this.states = states;
         parent = parentNode;
         moveDescription = moveDesc;
-
-        StringBuilder states = new StringBuilder();
-        // Iterate through the bridges alphabetically and add them to the string
-        for (Iterator<Character> it = bridgeStates.keySet().stream().sorted().iterator(); it.hasNext(); ) {
-            char key = it.next();
-            boolean value = bridgeStates.get(key);
-            states.append(value ? '1' : '0');
-        }
-        identifier = player.formatIdentifier() + "," + states;
+        identifier = player.formatIdentifier() + "," + concatBridgeStatesAlphabetically(states);
     }
 
     /**
-     * Generates every PlayerChange that is possible from the current position, orientation, and level state.
+     * Builds a binary string containing each bridge state in lexical order.
+     * This can be thought of as a hash function for the bridgeStates map.
+     * @param states A mapping containing each bridges' state
+     * @return Binary pattern string
+     */
+    private static String concatBridgeStatesAlphabetically(Map<Character, Boolean> states) {
+        StringBuilder binaryPattern = new StringBuilder();
+        for (Iterator<Character> it = states.keySet().stream().sorted().iterator(); it.hasNext(); ) {
+            char key = it.next();
+            boolean value = states.get(key);
+            binaryPattern.append(value ? '1' : '0');
+        }
+        return binaryPattern.toString();
+    }
+
+    /**
+     * Generates every PlayerChange that is possible from the current position and orientation, regardless of outcome
+     * @param player The player's current position
      * @return A list of PlayerChanges
      */
-    private List<PlayerChange> generateNextPositions() {
+    private static List<PlayerChange> generateNextPositions(Player player) {
         List<PlayerChange> changes = new ArrayList<>();
         Direction[] directions = new Direction[]{Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT};
 
@@ -53,7 +62,7 @@ public class StateNode {
      * @param y The y coord
      * @return The tile at that coordinate, or void if it's out-of-bounds.
      */
-    private Tile getTileOrVoid(List<List<Tile>> tiles, int x, int y) {
+    private static Tile getTileOrVoid(List<List<Tile>> tiles, int x, int y) {
         try {
             return tiles.get(y).get(x);
         } catch (IndexOutOfBoundsException e) {
@@ -68,9 +77,9 @@ public class StateNode {
      */
     public List<StateNode> generateChildren(Level level) {
         List<StateNode> children = new ArrayList<>();
-        List<List<Tile>> tiles = level.applyState(bridgeStates);
+        List<List<Tile>> tiles = level.applyState(states);
 
-        for (PlayerChange change : generateNextPositions()) {
+        for (PlayerChange change : generateNextPositions(player)) {
             Player newPlayer = change.player();
 
             // The PlayerChanges alone are not guaranteed to be valid, as some may fall off an edge or break a weak tile
@@ -79,20 +88,24 @@ public class StateNode {
             int x2 = newPlayer.getSecond().x();
             int y2 = newPlayer.getSecond().y();
 
-            Tile tileA, tileB, tileC, tileD;
-            tileB = getTileOrVoid(tiles, x1, y1);
-            tileC = getTileOrVoid(tiles, x2, y2);
+            Tile firstTile = getTileOrVoid(tiles, x1, y1);
+            Tile secondTile = getTileOrVoid(tiles, x2, y2);
 
-            // One fell off the platform
             if (newPlayer.isSplit()) {
-                if (tileB == Tile.VOID || tileC == Tile.VOID)
+                if (firstTile == Tile.VOID || secondTile == Tile.VOID)
                     continue;
             } else if (newPlayer.isVertical()) {
-                // Would break a weak tile or fell off
-                if (tileB == Tile.VOID || tileB == Tile.WEAK_FLOOR)
+                // It should be noted that vertical slabs are the only victim of the weak floor tile
+                if (firstTile == Tile.VOID || secondTile == Tile.WEAK_FLOOR)
                     continue;
             } else {
-                // i.e. ABCD where BC is the tile (horizontal)
+                // A-B-C-D is meant to represent the 4 relevant tiles that are coincident with the horizontal player
+                // which are uniquely responsible for determining if the player is going to fall off
+                Tile tileA, tileB, tileC, tileD;
+                // This is legal since first and second tile are sorted as per Player's documentation
+                tileB = firstTile;
+                tileC = secondTile;
+
                 if (x1 != x2) {
                     tileA = getTileOrVoid(tiles, x1 - 1, y1);
                     tileD = getTileOrVoid(tiles, x2 + 1, y1);
@@ -101,24 +114,19 @@ public class StateNode {
                     tileD = getTileOrVoid(tiles, x1, y2 + 1);
                 }
 
-                // discard if we've fallen off
-                // this works since the block considers adjacent tiles in the long direction
+                // This makes more sense if you consider that the player has unlimited traction with the ground,
+                // preventing it from slipping in a '@ @@' arrangement where the player is horizontal in the center.
                 if (tileA == Tile.VOID && tileB == Tile.VOID
                         || tileB == Tile.VOID && tileC == Tile.VOID
                         || tileC == Tile.VOID && tileD == Tile.VOID)
                     continue;
             }
 
-            // (x1, y1) & (x2, y2) should be valid
-            // now, we need to register any switch events and create a new set of bridge states
-            Map<Character, Boolean> newBridgeStates = new TreeMap<>(bridgeStates);
-            for (Map.Entry<Character, TileMetadata> metadata : level.tilesMetadata().entrySet()) {
-                // We know it's a switch if it has a switch attribute
-                SwitchAttribute attr = metadata.getValue().getSwitchAttribute();
+            Map<Character, Boolean> newTileStates = new TreeMap<>(states);
+            for (Map.Entry<Character, TileMetadata> metadataEntry : level.tilesMetadata().entrySet()) {
+                SwitchAttribute attr = metadataEntry.getValue().getSwitchAttribute();
                 if (attr != null) {
-                    // We'll examine all the locations it is at to determine if we've stepped on a switch
-                    List<Position> positions = level.tilesMetadata().get(metadata.getKey()).getPositions();
-                    for (Position position : positions) {
+                    for (Position position : metadataEntry.getValue().getPositions()) {
                         boolean activated;
                         int x = position.x();
                         int y = position.y();
@@ -132,7 +140,6 @@ public class StateNode {
                         if (!activated)
                             continue;
 
-                        // We can then invoke every action that the switch attribute contains
                         Position[] locations = attr.teleportLocations();
                         if (locations != null) {
                             newPlayer = new Player(
@@ -142,21 +149,17 @@ public class StateNode {
                         }
 
                         for (TileAction action : attr.bridgeActions()) {
-                            char bridge = action.tileId();
-                            BridgeEffect effect = action.effect();
-                            boolean bridgeState;
-                            switch (effect) {
-                                case ON -> bridgeState = true;
-                                case TOGGLE -> bridgeState = !newBridgeStates.get(bridge);
-                                default -> bridgeState = false;
-                            }
-                            newBridgeStates.put(bridge, bridgeState);
+                            boolean newBridgeState = switch (action.effect()) {
+                                case ON -> true;
+                                case TOGGLE -> !newTileStates.get(action.tileId());
+                                default -> false; // OFF
+                            };
+                            newTileStates.put(action.tileId(), newBridgeState);
                         }
                     }
                 }
             }
-            StateNode node = new StateNode(newPlayer, this, change.description(), newBridgeStates);
-            children.add(node);
+            children.add(new StateNode(newPlayer, this, change.description(), newTileStates));
         }
 
         return children;

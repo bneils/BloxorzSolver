@@ -14,14 +14,13 @@ public class StateGraph {
         Queue<StateNode> workQueue = new LinkedList<>();
 
         // Gather all the starting bridge states and use it for the first state node
-        Map<Character, Boolean> bridgeStates = new TreeMap<>();
+        Map<Character, Boolean> states = new TreeMap<>();
         for (Map.Entry<Character, TileMetadata> entry : level.tilesMetadata().entrySet())
-            if (entry.getValue().isBridge())
-                bridgeStates.put(entry.getKey(), entry.getValue().getStartingBridgeState());
+            states.put(entry.getKey(), entry.getValue().getStartingBridgeState());
         Position firstPlayerPos = level.tilesMetadata().get('$').getPositions().get(0);
         Position goalPos = level.tilesMetadata().get('^').getPositions().get(0);
         StateNode startingNode = new StateNode(new Player(firstPlayerPos, firstPlayerPos),
-                null, "", bridgeStates);
+                null, "", states);
 
         workQueue.add(startingNode);
         StateNode backtrackingNode = null;

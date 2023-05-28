@@ -23,10 +23,6 @@ public class TileMetadata {
         id = c;
     }
 
-    public boolean isBridge() {
-        return Character.isLowerCase(id);
-    }
-
     public SwitchAttribute getSwitchAttribute() { return switchAttribute; }
 
     public boolean getStartingBridgeState() { return startingBridgeState; }

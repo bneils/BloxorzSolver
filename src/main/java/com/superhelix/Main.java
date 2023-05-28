@@ -27,8 +27,9 @@ public class Main {
             System.out.println("Here's the solution to: " + args[0]);
             for (int i = 0; i < moves.size();) {
                 int j = i + 1;
-                while (j < moves.size() && moves.get(i).equals(moves.get(j)))
-                    ++j;
+                if (!moves.get(i).startsWith("SPACE"))
+                    while (j < moves.size() && moves.get(i).equals(moves.get(j)))
+                        ++j;
                 int count = j - i;
                 if (count != 1)
                     System.out.printf("%3d. %s x %d\n", i + 1, moves.get(i), j - i);

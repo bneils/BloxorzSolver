@@ -4,15 +4,6 @@ import java.io.*;
 import java.util.*;
 
 public class LevelUtils {
-    private static char toTileCharacter(String s) throws LevelParserException {
-        if (s.length() > 1)
-            throw new LevelParserException("Name '%s' is too long".formatted(s));
-        char c = s.charAt(0);
-        if (!(Character.isAlphabetic(c) || c == '$' || c == '^'))
-            throw new LevelParserException("Name '%c' is not valid".formatted(c));
-        return c;
-    }
-
     public static Level loadFromFile(String levelFilename, String infoFilename) throws FileNotFoundException, LevelParserException {
         Scanner levelScanner = new Scanner(new File(levelFilename));
 
@@ -67,7 +58,9 @@ public class LevelUtils {
             Scanner infoScanner = new Scanner(new File(infoFilename));
             lineno = 1;
             while (infoScanner.hasNextLine()) {
-                String line = infoScanner.nextLine();
+                String line = infoScanner.nextLine().strip();
+                if (line.length() == 0)
+                    continue;
                 String[] halves = line.split(":");
                 if (halves.length != 2)
                     throw new LevelParserException("One colon must be used on line %d".formatted(lineno));
@@ -157,8 +150,6 @@ public class LevelUtils {
         if (!tilesMetadata.containsKey('^'))
             throw new LevelParserException("There is no goal position");
 
-        return new Level(
-                tiles, tilesMetadata
-        );
+        return new Level(tiles, tilesMetadata);
     }
 }

@@ -1,0 +1,10 @@
+A: hard, toggle d
+B: soft, off a, off c, off d, off e
+C: hard, off a, on f
+E: hard, toggle e
+a: on
+b: on
+c: on
+d: off
+e: off
+f: off

@@ -1,0 +1,15 @@
+A: soft, on d, off b
+B: hard, on e
+C: hard, on i, off c
+D: hard, on g
+E: soft, on h
+F: soft, off a, off d, on f
+a: on
+b: on
+c: on
+d: off
+e: off
+f: off
+g: off
+h: off
+i: off

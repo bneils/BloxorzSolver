@@ -1,10 +1,9 @@
 package com.superhelix;
 
+/// The player class represents where the two blocks are, and whether they move together or separately.
+/// The two coordinates will be sorted by the x-coordinate and then the y-coordinate (if x are the same), but won't
+/// change where the focus is.
 public class Player {
-    /// The player class represents where the two blocks are, and whether they move together or separately.
-    /// If the player is disconnected, the order in which the positions are stored is arbitrary, but the two
-    /// coordinates will be sorted by the x-coordinate and then the y-coordinate (if x are the same) before being
-    /// put in the identifier.
     private Position first, second;
     private final boolean isSplit;
     private int focus;
@@ -26,6 +25,10 @@ public class Player {
         sortPositions();
     }
 
+    /**
+     * Internally sorts the positions by x and then by y.
+     * Note that while this function may appear to toggle the focus, that focus is still on the same position.
+     */
     private void sortPositions() {
         // Sort by x, but also by y to break the tie
         if (first.x() > second.x() || (first.x() == second.x() && first.y() > second.y())) {
@@ -36,7 +39,13 @@ public class Player {
         }
     }
 
-    public boolean calculateIsSplit(Position first, Position second) {
+    /**
+     * Determines if the player was split apart (by a teleport switch)
+     * @param first The first position
+     * @param second The second position
+     * @return Whether the player is split in-half, or it doesn't resemble a normal horizontal or vertical slab.
+     */
+    private static boolean calculateIsSplit(Position first, Position second) {
         int dx = Math.abs(first.x() - second.x());
         int dy = Math.abs(first.y() - second.y());
         return !(dx <= 1 && dy == 0 || dx == 0 && dy <= 1);
@@ -46,8 +55,13 @@ public class Player {
         return first.x() == second.x() && first.y() == second.y();
     }
 
+    /**
+     * Creates a copy of the player but moved in a direction, preserving focus
+     * @param direction The direction to move in
+     * @param switchFocus Whether to switch focus before moving
+     * @return The moved player
+     */
     public Player newMovedPlayer(Direction direction, boolean switchFocus) {
-        // Switch focus is ignored if isSplit is false
         Position newFirst, newSecond;
 
         int[] offset = direction.toOffset();
@@ -70,8 +84,9 @@ public class Player {
             int x2 = second.x();
             int y2 = second.y();
 
-            if (first.x() == second.x() && first.y() == second.y()) {
-                // if it's vertical each next state is horizontal
+            // vertical -> horizontal
+            // whereas, horizontal may turn into either
+            if (first.equals(second)) {
                 if (dx != 0) {
                     x1 = (dx == 1) ? first.x() + 1 : first.x() - 2;
                     x2 = x1 + 1;

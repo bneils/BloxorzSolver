@@ -2,13 +2,16 @@ package com.superhelix;
 
 import java.util.*;
 
-// Contains the original level
 public record Level(
         List<List<Tile>> tiles,
         Map<Character, TileMetadata> tilesMetadata
 ) {
-    public List<List<Tile>> applyState(Map<Character, Boolean> bridgeStates) {
-        // Do a clone of tiles
+    /**
+     * Applies a map of tile states to the level, leaving some tiles to be no longer physical if they're powered off
+     * @param states The map of states from switches and bridges to their state
+     * @return A matrix of tiles
+     */
+    public List<List<Tile>> applyState(Map<Character, Boolean> states) {
         List<List<Tile>> newTiles = new ArrayList<>();
         for (List<Tile> row : tiles) {
             List<Tile> newRow = new ArrayList<>(row.size());
@@ -16,9 +19,7 @@ public record Level(
             newTiles.add(newRow);
         }
 
-        // Update the (jagged) tile grid using each bridge state, because we want to use the changes that happened to
-        // dictate where the player can move
-        for (Map.Entry<Character, Boolean> entry : bridgeStates.entrySet()) {
+        for (Map.Entry<Character, Boolean> entry : states.entrySet()) {
             Tile newTile = entry.getValue() ? Tile.STRONG_FLOOR : Tile.VOID;
             for (Position pos : tilesMetadata.get(entry.getKey()).getPositions())
                 newTiles.get(pos.y()).set(pos.x(), newTile);
