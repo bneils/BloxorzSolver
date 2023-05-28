@@ -24,7 +24,7 @@ public class Main {
 
         ArrayList<String> moves = (ArrayList<String>) StateGraph.generateMinimalMovePattern(level);
         if (moves.size() > 0) {
-            System.out.println("Here's the solution to: " + args[0]);
+            System.out.printf("Here's the solution to '%s' in %d moves:\n", args[0], moves.size());
             for (int i = 0; i < moves.size();) {
                 int j = i + 1;
                 if (!moves.get(i).startsWith("SPACE"))
